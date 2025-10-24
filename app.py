@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import mysql.connector
 
-app = Flask(__name__,static_folder='frontend', template_folder='uploads')
+app = Flask(__name__,static_folder='frontend', template_folder='frontend')
 CORS(app, resources={r"/*": {"origins": "*"}},
      allow_headers=["Authorization", "Content-Type"],
      expose_headers=["Authorization"],
@@ -300,6 +300,18 @@ def serve_index():
 @app.get("/<path:path>")
 def serve_static(path):
     return send_from_directory(FRONT_DIR, path)
+
+@app.route('/')
+def index():
+    return send_from_directory(app.template_folder, 'index.html')
+
+@app.route('/admin')
+def admin():
+    return send_from_directory(app.template_folder, 'admin.html')
+
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory(app.static_folder, path)
 
 if __name__=="__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
