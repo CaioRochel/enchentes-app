@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Painel de Administração</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="container">
+    <h1>Painel de Administração</h1>
+    <p><a href="index.html" class="home-btn" title="Voltar ao mapa">
+  <img src="icons/home icon.png" alt="Home"></a></p>
+  </header>
+
+  <main class="container">
+    <!-- ===== Tabela de usuários ===== -->
+    <section class="card">
+      <header>Usuários</header>
+      <div class="content">
+        <div class="table-wrapper">
+          <table id="users">
+            <thead>
+              <tr>
+                <th>ID</th><th>Nome</th><th>Email</th><th>Role</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Tabela de ocorrências ===== -->
+    <section class="card">
+      <header>Ocorrências</header>
+      <div class="table-container">
+        <div class="table-wrapper">
+          <table id="ocorrencias">
+            <thead>
+              <tr>
+                <th>ID</th><th>Descrição</th><th>Cidade</th><th>Autor</th><th>Data</th><th>Ações</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE="http://192.168.0.105:5000"
+    let auth=null
+
+    function loadAuth(){
+      try{
+        const t=localStorage.getItem('token')
+        const u=localStorage.getItem('user')
+        if(t&&u){ auth={token:t,user:JSON.parse(u)} }
+      }catch{}
+    }
+
+    async function authFetch(url,options={}){
+      const headers=new Headers(options.headers||{})
+      if(auth&&auth.token) headers.set("Authorization",`Bearer ${auth.token}`)
+      const res=await fetch(url,{...options,headers})
+      if(res.status===401||res.status===403){
+        alert("Acesso negado. Faça login como admin.")
+        location.href="index.html"
+        throw new Error("unauthorized")
+      }
+      return res
+    }
+
+    async function carregarUsuarios(){
+      const res=await authFetch(`${API_BASE}/users`)
+      const data=await res.json()
+      const tbody=document.querySelector("#users tbody")
+      tbody.innerHTML=""
+      data.forEach(u=>{
+        const tr=document.createElement("tr")
+        tr.innerHTML=`
+          <td data-label="ID">${u.id}</td>
+          <td data-label="Nome">${u.name}</td>
+          <td data-label="Email">${u.email}</td>
+          <td data-label="Role">${u.role}</td>
+          <td data-label="Ações">
+            ${u.role !== 'admin' ? `
+              <button class="icon-btn promote" onclick="promover(${u.id})" title="Promover">
+                <img src="icons/promover icon.png" alt="Promover">
+              </button>` : ""}
+            <button class="icon-btn del" onclick="deletarUsuario(${u.id})" title="Apagar">
+              <img src="icons/lixeira icon.png" alt="Apagar">
+            </button>
+        </td>
+`
+        tbody.appendChild(tr)
+      })
+    }
+
+    async function carregarOcorrencias(){
+      const res=await authFetch(`${API_BASE}/ocorrencias`)
+      const data=await res.json()
+      const tbody=document.querySelector("#ocorrencias tbody")
+      tbody.innerHTML=""
+      data.forEach(o=>{
+        const tr=document.createElement("tr")
+        tr.innerHTML=`
+          <td data-label="ID">${o.id}</td>
+          <td data-label="Descrição">${o.descricao}</td>
+          <td data-label="Cidade">${o.localizacao.cidade||""}</td>
+          <td data-label="Autor">${o.autor?o.autor.name:"-"}</td>
+          <td data-label="Data">${new Date(o.data_ocorrencia).toLocaleString()}</td>
+        <td data-label="Ações">
+          <button class="icon-btn edit" onclick="editarOcorrencia(${o.id})" title="Editar">
+            <img src="icons/lapis icon.png" alt="Editar">
+          </button>
+          <button class="icon-btn del" onclick="deletarOcorrencia(${o.id})" title="Apagar">
+            <img src="icons/lixeira icon.png" alt="Apagar">
+          </button>
+        </td>
+
+`
+        tbody.appendChild(tr)
+      })
+    }
+
+    async function promover(id){
+      if(!confirm("Promover usuário a admin?")) return
+      const res=await authFetch(`${API_BASE}/users/${id}/promote`,{method:"PUT"})
+      const j=await res.json()
+      alert(j.mensagem||j.erro)
+      carregarUsuarios()
+    }
+
+    async function deletarUsuario(id){
+      if(!confirm("Excluir usuário?")) return
+      const res=await authFetch(`${API_BASE}/users/${id}`,{method:"DELETE"})
+      const j=await res.json()
+      alert(j.mensagem||j.erro)
+      carregarUsuarios()
+    }
+
+    async function deletarOcorrencia(id){
+      if(!confirm("Excluir ocorrência?")) return
+      const res=await authFetch(`${API_BASE}/ocorrencias/${id}`,{method:"DELETE"})
+      const j=await res.json()
+      alert(j.mensagem||j.erro)
+      carregarOcorrencias()
+    }
+
+    async function editarOcorrencia(id){
+      const novaDesc=prompt("Nova descrição:")
+      if(novaDesc===null) return
+      const novaCidade=prompt("Nova cidade:")
+      const body={}
+      if(novaDesc.trim()) body.descricao=novaDesc.trim()
+      if(novaCidade.trim()) body.cidade=novaCidade.trim()
+      const res=await authFetch(`${API_BASE}/ocorrencias/${id}`,{
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(body)
+      })
+      const j=await res.json()
+      alert(j.mensagem||j.erro)
+      carregarOcorrencias()
+    }
+
+    loadAuth()
+    if(!auth||auth.user.role!=="admin"){
+      alert("Acesso negado. Faça login como admin.")
+      location.href="index.html"
+    }else{
+      carregarUsuarios()
+      carregarOcorrencias()
+    }
+  </script>
+</body>
+</html>

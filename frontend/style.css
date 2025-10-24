@@ -1,0 +1,479 @@
+/* =========================================================
+   ENCHENTES APP - TEMA SUSTENTÁVEL
+   Cores: verdes, azuis e neutros
+   Estrutura: Desktop e Mobile (até 768px)
+========================================================= */
+
+/* ------------------------
+   VARIÁVEIS E BASE GLOBAL
+-------------------------*/
+:root {
+  --bg: #f5f9f6;
+  --surface: #ffffff;
+  --primary: #2e7d32;
+  --primary-light: #81c784;
+  --accent: #0277bd;
+  --text: #1b1b1b;
+  --muted: #777;
+  --border: #e0e0e0;
+  --danger: #c62828;
+  --warning: #f9a825;
+  --shadow: rgba(0, 0, 0, 0.08);
+  --radius: 10px;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ------------------------
+   BASE DO LAYOUT
+-------------------------*/
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* ------------------------
+   CABEÇALHO
+-------------------------*/
+header {
+  background: var(--surface);
+  box-shadow: 0 1px 4px var(--shadow);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+h1 {
+  font-size: 1.2rem;
+  color: var(--primary);
+  margin: 0;
+}
+
+/* Botão Home (ícone de casa) */
+.home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  margin: 0;
+  cursor: pointer;
+}
+.home-btn img {
+  width: 26px;
+  height: 26px;
+  filter: brightness(0);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.home-btn:hover img {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+/* ------------------------
+   BOTÕES PADRÃO
+-------------------------*/
+button {
+  cursor: pointer;
+  border-radius: var(--radius);
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  padding: 8px 14px;
+}
+button:hover { opacity: 0.9; }
+
+.primary { background: var(--primary); color: #fff; }
+.btn { background: var(--accent); color: #fff; }
+.btn.edit { background: var(--warning); }
+.btn.del { background: var(--danger); }
+.btn.view { background: var(--accent); }
+
+/* Botões de ícone (sem fundo colorido) */
+button.icon-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+button.icon-btn img {
+  width: 22px;
+  height: 22px;
+}
+button.icon-btn:hover {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+/* ------------------------
+   CARDS E FORMULÁRIOS
+-------------------------*/
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px var(--shadow);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+.card header {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  color: var(--primary);
+}
+
+input, textarea, select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  font-size: 14px;
+  background: #fff;
+  box-sizing: border-box;
+}
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(2,119,189,0.2);
+}
+
+/* ------------------------
+   MAPA
+-------------------------*/
+#map {
+  height: 55vh;
+  width: 100%;
+  border-bottom: 2px solid var(--primary-light);
+}
+
+/* Popups do mapa */
+.leaflet-popup-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+  margin: 8px 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* ------------------------
+   LISTA DE OCORRÊNCIAS (INDEX)
+-------------------------*/
+.list {
+  display: grid;
+  gap: 10px;
+}
+.item {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.thumb {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.item-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.info-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+.actions-inline {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ------------------------
+   TABELAS (ADMIN)
+-------------------------*/
+.table-container {
+  width: calc(100% - 20px);
+  margin: 0 auto;
+  overflow-x: auto;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px var(--shadow);
+  padding: 10px;
+  box-sizing: border-box;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  background: var(--primary-light);
+  color: var(--text);
+  font-weight: 600;
+}
+tr:hover { background: #f1f8e9; }
+
+/* ------------------------
+   MOBILE (até 768px)
+-------------------------*/
+@media (max-width: 768px) {
+
+  /* ----- Geral ----- */
+  html, body {
+    overflow-x: hidden;
+    font-size: 0.85rem;
+  }
+  h1, h2, h3 { font-size: 1rem; }
+  .container { width: 95%; padding: 0 10px; }
+
+  /* ----- Header e Home ----- */
+  header.container {
+    position: relative;
+    padding: 10px 6px;
+    justify-content: center;
+    align-items: center;
+  }
+  header.container h1 {
+    text-align: center;
+    flex: 1;
+    font-size: 1rem;
+    margin: 0;
+  }
+  .home-btn {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+  }
+  .home-btn img {
+    width: 27px;
+    height: 27px;
+  }
+
+  /* ----- Cards e formulários ----- */
+  .card {
+    margin: 0 auto 16px;
+    padding: 12px;
+    width: 95%;
+  }
+  form input, form textarea, form select {
+    width: 100%;
+    margin: 4px 0;
+  }
+
+  /* ----- Lista de ocorrências ----- */
+  .list {
+    padding: 0 10px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 10px;
+    margin: 8px auto;
+    width: 95%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+  .item-content {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .thumb {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    margin-bottom: 8px;
+  }
+  .info { text-align: center; width: 100%; }
+  .info-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 6px;
+  }
+  .actions-inline {
+    justify-content: center;
+    gap: 14px;
+  }
+
+  /* ----- Tabelas (modo card empilhado) ----- */
+  table, thead, tbody, th, td, tr {
+    display: block;
+    width: 100%;
+    text-align: left;
+    white-space: normal;
+    word-wrap: break-word;
+  }
+  thead { display: none; }
+  tr {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 6px var(--shadow);
+    margin-bottom: 14px;
+    padding: 10px;
+  }
+  td {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  td:last-child { border-bottom: none; }
+  td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--primary);
+    flex-basis: 40%;
+  }
+
+  /* ----- Ícones menores ----- */
+  td button.icon-btn img {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ======== CORREÇÃO FINAL DE LAYOUT MOBILE PARA ADMIN ======== */
+@media (max-width: 768px) {
+
+  html, body {
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ===== ÍCONE DE HOME ===== */
+  header.container {
+    padding: 10px 14px;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .home-btn {
+    margin: 0;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+  }
+
+  .home-btn img {
+    width: 26px;
+    height: 26px;
+    display: block;
+  }
+
+  /* ===== AJUSTE DE TABELAS EMPILHADAS ===== */
+  .card,
+  .table-container,
+  .table-wrapper {
+    width: 95%;
+    margin: 0 auto;
+    padding: 6px;
+    box-sizing: border-box;
+  }
+
+  table, tr, td {
+    width: 100%;
+    white-space: normal;
+    word-wrap: break-word;
+    box-sizing: border-box;
+  }
+
+  tr {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 6px var(--shadow);
+    margin-bottom: 12px;
+    padding: 10px;
+  }
+
+  td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    padding: 4px 6px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    width: 100%;
+  }
+
+  td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--primary);
+    flex-basis: 40%;
+    text-align: left;
+    white-space: normal;
+  }
+
+  td:last-child {
+    border-bottom: none;
+  }
+
+  /* ===== AJUSTE DE ÍCONES DENTRO DAS TABELAS ===== */
+  td button.icon-btn img {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* ===== AJUSTE DE FONTES ===== */
+  body {
+    font-size: 0.85rem;
+  }
+
+  h1, h2, h3 {
+    font-size: 1rem;
+  }
+
+  header h1 {
+    font-size: 1rem;
+    text-align: left;
+  }
+}

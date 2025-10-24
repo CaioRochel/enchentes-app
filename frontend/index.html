@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Alertas de Alagamento</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Ocorrências de Alagamento</h1>
+    <div class="authbar">
+      <small id="whoami">Deslogado</small>
+      <button id="btnAdmin" style="display:none">Admin</button>
+      <button id="btnLogin" class="primary">Entrar</button>
+      <button id="btnRegister">Cadastrar</button>
+      <button id="btnLogout" style="display:none">Sair</button>
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <main>
+    <section class="card">
+      <header><span>Novo registro</span><small id="hintLogin"></small></header>
+      <div class="content">
+        <form id="form" enctype="multipart/form-data">
+          <textarea id="descricao" placeholder="Descrição da ocorrência" required></textarea>
+          <div class="row">
+            <input id="latitude" type="number" step="any" placeholder="Latitude" required/>
+            <input id="longitude" type="number" step="any" placeholder="Longitude" required/>
+          </div>
+          <div class="toolbar">
+            <input id="foto" type="file" accept="image/*" capture="environment"/>
+            <button type="button" id="loc-btn">Minha localização</button>
+            <button type="submit">Registrar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <header><span>Lista de ocorrências</span><small id="listHint"></small></header>
+      <div class="content">
+        <div class="toolbar">
+          <input id="filtroTexto" placeholder="Buscar descrição/cidade/autor"/>
+          <input id="filtroCidade" placeholder="Filtrar por cidade"/>
+          <button id="recarregarBtn" class="icon-btn" title="Recarregar">
+           <img src="icons/recarregar icon.png" alt="Recarregar">
+          </button>
+
+        </div>
+        <div id="lista" class="list"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlgLogin">
+    <div>
+      <h3>Entrar</h3>
+      <input id="loginEmail" placeholder="Email"/>
+      <input id="loginPass" type="password" placeholder="Senha"/>
+      <button onclick="doLogin()">Entrar</button>
+      <button onclick="dlgLogin.close()">Cancelar</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlgRegister">
+    <div>
+      <h3>Cadastrar</h3>
+      <input id="regName" placeholder="Nome"/>
+      <input id="regEmail" placeholder="Email"/>
+      <input id="regPass" type="password" placeholder="Senha"/>
+      <button onclick="doRegister()">Cadastrar</button>
+      <button onclick="dlgRegister.close()">Cancelar</button>
+    </div>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script>
+    const API_BASE="http://192.168.0.105:5000"
+    let auth={token:null,user:null}
+    const whoami=document.getElementById('whoami'),
+          btnLogin=document.getElementById('btnLogin'),
+          btnRegister=document.getElementById('btnRegister'),
+          btnLogout=document.getElementById('btnLogout'),
+          btnAdmin=document.getElementById('btnAdmin'),
+          hintLogin=document.getElementById('hintLogin'),
+          listHint=document.getElementById('listHint')
+
+    function loadAuth(){try{const t=localStorage.getItem('token'),u=localStorage.getItem('user');if(t&&u){auth.token=t;auth.user=JSON.parse(u)}}catch{}renderAuthBar()}
+    function saveAuth(){if(auth.token&&auth.user){localStorage.setItem('token',auth.token);localStorage.setItem('user',JSON.stringify(auth.user))}else{localStorage.clear()}renderAuthBar()}
+    function renderAuthBar(){if(auth.user){whoami.textContent=`${auth.user.name} (${auth.user.role})`;btnLogin.style.display='none';btnRegister.style.display='none';btnLogout.style.display='inline-block';btnAdmin.style.display=auth.user.role==='admin'?'inline-block':'none';hintLogin.textContent='';listHint.textContent=auth.user.role==='admin'?'Gerenciamento habilitado (admin).':'Somente admin pode editar/apagar.'}else{whoami.textContent='Deslogado';btnLogin.style.display='inline-block';btnRegister.style.display='inline-block';btnLogout.style.display='none';btnAdmin.style.display='none';hintLogin.textContent='Entre para registrar.';listHint.textContent=''}}
+    btnAdmin.onclick=()=>location.href="admin.html";btnLogin.onclick=()=>dlgLogin.showModal();btnRegister.onclick=()=>dlgRegister.showModal();btnLogout.onclick=()=>{auth={token:null,user:null};saveAuth();location.reload()}
+    async function authFetch(url,opt={}){const h=new Headers(opt.headers||{});if(auth.token)h.set("Authorization",`Bearer ${auth.token}`);const r=await fetch(url,{...opt,headers:h});if(r.status===401){auth={};saveAuth();alert("Sessão expirada. Entre novamente.");throw new Error("unauth")}return r}
+
+    const map=L.map('map')
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map)
+    map.setView([-23.55,-46.63],5)
+    const markers=L.layerGroup().addTo(map)
+    let heatLayer=null,pickMarker=null,ocorrenciasCache=[]
+
+    function setLatLon(lat,lon,zoom=14){document.getElementById('latitude').value=+lat;document.getElementById('longitude').value=+lon;map.setView([lat,lon],zoom);if(pickMarker)map.removeLayer(pickMarker);pickMarker=L.marker([lat,lon]).addTo(map).bindPopup("Local selecionado").openPopup()}
+
+    async function carregarOcorrencias(){const r=await fetch(`${API_BASE}/ocorrencias`);if(!r.ok){alert("Erro ao carregar");return}const d=await r.json();ocorrenciasCache=d;renderMapa(d);renderLista(d)}
+
+   async function renderMapa(data) {
+  markers.clearLayers();
+  const heatPoints = [];
+  const clusters = {};
+
+  for (const o of data) {
+    const lat = o.localizacao.latitude, lng = o.localizacao.longitude;
+    heatPoints.push([lat, lng, 0.6]);
+    const img = o.foto_url ? `<img class="popup-img" src="${o.foto_url}" alt="Foto"/>` : "";
+    const autor = o.autor && o.autor.name ? o.autor.name : "—";
+    const riscoId = `risco-${o.id}`, climaId = `clima-${o.id}`;
+    const popup = `
+      <b>${o.descricao}</b><br/>
+      ${o.localizacao.cidade || ""}<br/>
+      ${new Date(o.data_ocorrencia).toLocaleString('pt-BR')}<br/>
+      <small>Autor: ${autor}</small><br/>
+      <div id="${riscoId}" style="margin-top:4px;font-size:12px;color:#444;">Carregando risco...</div>
+      <div id="${climaId}" style="margin-top:4px;font-size:12px;color:#444;">Carregando clima...</div>
+      ${img}
+    `;
+
+    const marker = L.marker([lat, lng]).bindPopup(popup, { maxWidth: 260 });
+
+    marker.on("popupopen", async () => {
+      if (o.localizacao.cidade) {
+        try {
+          const resRisco = await fetch(`${API_BASE}/risco/${encodeURIComponent(o.localizacao.cidade)}`);
+          if (resRisco.ok) {
+            const risco = await resRisco.json();
+            const elRisco = document.getElementById(riscoId);
+            if (elRisco)
+              elRisco.textContent = `Risco: ${risco.risco} • Chuva: ${risco.chuva_prevista_mm} mm`;
+          } else {
+            const elRisco = document.getElementById(riscoId);
+            if (elRisco) elRisco.textContent = "Risco não disponível";
+          }
+        } catch {
+          const elRisco = document.getElementById(riscoId);
+          if (elRisco) elRisco.textContent = "Erro ao carregar risco";
+        }
+
+        try {
+          const resClima = await fetch(`${API_BASE}/clima/${encodeURIComponent(o.localizacao.cidade)}`);
+          if (resClima.ok) {
+            const clima = await resClima.json();
+            const elClima = document.getElementById(climaId);
+            if (elClima)
+              elClima.innerHTML = `
+                <img src="${clima.icone}" alt="Clima" style="height:18px;vertical-align:middle;margin-right:4px;"/>
+                ${clima.condicao} • ${clima.temp_c}°C • Umidade: ${clima.umidade}%`;
+          } else {
+            const elClima = document.getElementById(climaId);
+            if (elClima) elClima.textContent = "Clima não disponível";
+          }
+        } catch {
+          const elClima = document.getElementById(climaId);
+          if (elClima) elClima.textContent = "Erro ao carregar clima";
+        }
+      }
+    });
+
+    marker.addTo(markers);
+
+    const latKey = Math.round(lat / 0.09) * 0.09,
+          lngKey = Math.round(lng / 0.09) * 0.09,
+          key = `${latKey},${lngKey}`;
+    if (!clusters[key]) clusters[key] = { count: 0, lat: latKey, lng: lngKey };
+    clusters[key].count++;
+  }
+
+  Object.keys(clusters).forEach(k => {
+    const c = clusters[k];
+    if (c.count >= 3) {
+      L.circle([c.lat, c.lng], {
+        radius: 10000,
+        color: "red",
+        fillColor: "#f03",
+        fillOpacity: 0.3,
+        interactive: false
+      })
+        .addTo(markers)
+        .bindPopup(`⚠️ Área de risco: ${c.count} ocorrências próximas (~10 km)`, {
+          interactive: false,
+          autoClose: false,
+          closeOnClick: false
+        });
+    }
+  });
+
+  if (heatLayer) map.removeLayer(heatLayer);
+  heatLayer = L.heatLayer(heatPoints, { radius: 25, blur: 20 });
+  heatLayer.addTo(map);
+}
+
+
+
+    function renderLista(data){
+      const el=document.getElementById('lista');el.innerHTML=""
+      data.forEach(o=>{
+        const autor=o.autor?o.autor.name:"-"
+        const item=document.createElement('div');item.className="item"
+       item.innerHTML = `
+  <div class="item-content">
+    ${o.foto_url ? `<img class="thumb" src="${o.foto_url}" alt="Foto"/>` : ""}
+    <div class="info">
+      <div class="info-header">
+        <b>#${o.id}</b> - ${o.descricao}
+        <div class="actions-inline">
+          <button class="icon-btn view" data-lat="${o.localizacao.latitude}" data-lng="${o.localizacao.longitude}" title="Ver">
+            <img src="icons/eye icon.png" alt="Ver">
+          </button>
+          ${auth.user && (auth.user.role === 'admin' || auth.user.id === o.autor?.id) ? `
+            <button class="icon-btn edit" data-id="${o.id}" title="Editar">
+              <img src="icons/lapis icon.png" alt="Editar">
+            </button>
+            <button class="icon-btn del" data-id="${o.id}" title="Apagar">
+              <img src="icons/lixeira icon.png" alt="Apagar">
+            </button>` : ""}
+        </div>
+      </div>
+      <span class="meta">${autor} • ${o.localizacao.cidade || ''} • ${new Date(o.data_ocorrencia).toLocaleString()}</span>
+    </div>
+  </div>
+`;
+
+
+
+        el.appendChild(item)
+      })
+    }
+
+    document.getElementById('filtroTexto').oninput=filtrar
+    document.getElementById('filtroCidade').oninput=filtrar
+    document.getElementById('recarregarBtn').onclick = carregarOcorrencias
+    function filtrar(){const t=document.getElementById('filtroTexto').value.toLowerCase(),c=document.getElementById('filtroCidade').value.toLowerCase();renderMapa(ocorrenciasCache.filter(o=>(!t||o.descricao.toLowerCase().includes(t)||(o.localizacao.cidade||"").toLowerCase().includes(t)||(o.autor?.name||"").toLowerCase().includes(t))&&(!c||(o.localizacao.cidade||"").toLowerCase().includes(c))));renderLista(ocorrenciasCache.filter(o=>(!t||o.descricao.toLowerCase().includes(t))))}
+
+    map.on("click",e=>setLatLon(e.latlng.lat,e.latlng.lng,map.getZoom()))
+    document.getElementById('loc-btn').onclick=()=>navigator.geolocation.getCurrentPosition(p=>setLatLon(p.coords.latitude,p.coords.longitude,16))
+
+    // Função para obter cidade automaticamente via coordenadas
+  async function getCidade(lat, lon) {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+      const data = await response.json();
+      return data.address.city || data.address.town || data.address.village || "Cidade não identificada";
+    } catch (error) {
+      console.error("Erro ao obter cidade:", error);
+      return "Cidade não identificada";
+    }
+  }
+
+// Função de envio do formulário de ocorrência
+document.getElementById('form').onsubmit = async e => {
+  e.preventDefault();
+
+  if (!auth.user) {
+    alert("Faça login antes de registrar uma ocorrência.");
+    return;
+  }
+
+  const lat = document.getElementById('latitude').value;
+  const lon = document.getElementById('longitude').value;
+  const cidade = await getCidade(lat, lon); // obtém cidade automaticamente
+
+  const fd = new FormData();
+  fd.append("descricao", descricao.value);
+  fd.append("latitude", lat);
+  fd.append("longitude", lon);
+  fd.append("cidade", cidade); // adiciona cidade detectada
+  if (foto.files[0]) fd.append("foto", foto.files[0]);
+
+  const r = await authFetch(`${API_BASE}/ocorrencias`, { method: "POST", body: fd });
+  const j = await r.json();
+
+  if (r.ok) {
+    alert(`Ocorrência registrada em ${cidade}`);
+    e.target.reset();
+    await carregarOcorrencias(); // aguarda recarregar
+    map.setView([lat, lon], 14);
+  } else {
+    alert(j.erro || "Erro ao registrar ocorrência");
+  }
+};
+
+    document.addEventListener("click", async e => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+
+  if (btn.classList.contains("view")) {
+    setLatLon(btn.dataset.lat, btn.dataset.lng, 16);
+  }
+
+  if (btn.classList.contains("edit")) {
+    const id = btn.dataset.id;
+    const d = prompt("Nova descrição:");
+    const c = prompt("Nova cidade:");
+    if (d || c) {
+      const r = await authFetch(`${API_BASE}/ocorrencias/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ descricao: d, cidade: c })
+      });
+      const j = await r.json();
+      alert(j.mensagem || j.erro);
+      carregarOcorrencias();
+    }
+  }
+
+  if (btn.classList.contains("del")) {
+    const id = btn.dataset.id;
+    if (confirm("Apagar esta ocorrência?")) {
+      const r = await authFetch(`${API_BASE}/ocorrencias/${id}`, { method: "DELETE" });
+      const j = await r.json();
+      alert(j.mensagem || j.erro);
+      carregarOcorrencias();
+    }
+  }
+});
+
+
+    async function doLogin(){const r=await fetch(`${API_BASE}/auth/login`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:loginEmail.value,password:loginPass.value})});const j=await r.json();if(r.ok){auth.token=j.token;auth.user=j.user;saveAuth();dlgLogin.close();carregarOcorrencias()}else alert(j.erro||r.status)}
+    async function doRegister(){const r=await fetch(`${API_BASE}/auth/register`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:regName.value,email:regEmail.value,password:regPass.value})});const j=await r.json();if(r.ok){auth.token=j.token;auth.user=j.user;saveAuth();dlgRegister.close();carregarOcorrencias()}else alert(j.erro||r.status)}
+
+    /*Inicialização */
+    
+    loadAuth();carregarOcorrencias()
+  </script>
+</body>
+</html>
