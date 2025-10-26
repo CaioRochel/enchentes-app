@@ -18,12 +18,13 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 FRONT_DIR = os.path.join(os.path.dirname(__file__), "frontend")
 
-# configuração banco
+# configuração banco de dados
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "alagamentos_user",
-    "password": "senha123",
-    "database": "enchentes_db"
+    'host': os.environ.get('MYSQLHOST', 'localhost'),
+    'port': int(os.environ.get('MYSQLPORT', 3306)),
+    'user': os.environ.get('MYSQLUSER', 'root'),
+    'password': os.environ.get('MYSQLPASSWORD', 'EEbBvXEZOTEdotWEivFacLeVMIjFzZtH'),
+    'database': os.environ.get('MYSQLDATABASE', 'enchentes_db')
 }
 
 # configuração JWT
