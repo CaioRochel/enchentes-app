@@ -23,8 +23,8 @@ DB_CONFIG = {
     'host': os.environ.get('MYSQLHOST', 'localhost'),
     'port': int(os.environ.get('MYSQLPORT', 3306)),
     'user': os.environ.get('MYSQLUSER', 'root'),
-    'password': os.environ.get('MYSQLPASSWORD', 'EEbBvXEZOTEdotWEivFacLeVMIjFzZtH'),
-    'database': os.environ.get('MYSQLDATABASE', 'enchentes_db')
+    'password': os.environ.get('MYSQLPASSWORD', ''),
+    'database': os.environ.get('MYSQLDATABASE', 'railway')
 }
 
 # configuração JWT
